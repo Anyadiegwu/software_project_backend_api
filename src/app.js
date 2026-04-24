@@ -1,21 +1,116 @@
+// const express = require("express");
+// const mongoose = require("mongoose");
+// const cors = require("cors");
+// const http = require("http");
+// const { Server } = require("socket.io");
+// const server = http.createServer(app);
+
+// require("dotenv").config();
+
+// const app = express();
+
+// // Middleware
+// app.use(express.json());
+// app.use(cors());
+
+// // Routes
+// app.use("/api/auth", require("./routes/authRoutes"));
+// app.use("/api/protected", require("./routes/protectedRoutes"));
+// app.use("/api/admin", require("./routes/adminRoutes"));
+// app.use("/api/reporter", require("./routes/reporterRoutes"));
+// app.use("/api/user", require("./routes/userRoutes"));
+// app.use("/api/notifications", require("./routes/notificationRoutes"));
+
+// // DB connection
+// mongoose.connect(process.env.MONGO_URI)
+//   .then(() => console.log("DB connected"))
+//   .catch(err => console.log(err));
+
+// // Server
+
+
+// const io = new Server(server, {
+//   cors: {
+//     origin: "*"
+//   }
+// });
+
+// // make io globally accessible
+// app.set("io", io);
+
+// // SOCKET CONNECTION
+// io.on("connection", (socket) => {
+//   console.log("User connected:", socket.id);
+
+//   socket.on("join", (userId) => {
+//     socket.join(userId); // join personal room
+//   });
+
+//   socket.on("disconnect", () => {
+//     console.log("User disconnected");
+//   });
+// });
+
+// server.listen(5000, () => {
+//   console.log("Server running with WebSocket");
+// });
+// // app.listen(5000, () => console.log("Serversss running on port 5000"));
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
+
 require("dotenv").config();
 
+// ✅ 1. CREATE APP FIRST
 const app = express();
 
-// Middleware
+// ✅ 2. MIDDLEWARE
 app.use(express.json());
 app.use(cors());
 
-// Routes
+// ✅ 3. ROUTES
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/protected", require("./routes/protectedRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
+app.use("/api/reporter", require("./routes/reporterRoutes"));
+app.use("/api/user", require("./routes/userRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
-// DB connection
+// ✅ 4. DB CONNECTION
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("DB connected"))
   .catch(err => console.log(err));
 
-// Server
-app.listen(5000, () => console.log("Serversss running on port 5000"));
+// ✅ 5. CREATE SERVER AFTER APP
+const server = http.createServer(app);
+
+// ✅ 6. SOCKET.IO
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+// ✅ 7. MAKE IO AVAILABLE
+app.set("io", io);
+
+// ✅ 8. SOCKET LOGIC
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  socket.on("join", (userId) => {
+    socket.join(userId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
+// ✅ 9. START SERVER
+server.listen(5000, () => {
+  console.log("Server running with WebSocket");
+});
