@@ -106,7 +106,7 @@ exports.reporterLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
     await AuditLog.create({
-      user: user._id,
+      actor: user._id,
       action: "LOGIN_SUCCESS",
       ip: req.ip
     });
