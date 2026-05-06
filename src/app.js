@@ -21,6 +21,8 @@ app.use("/api/reporter", require("./routes/reporterRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/security", require("./routes/securityRoutes"));
+// Add this line with other routes
+app.use("/api/townhalls", require("./routes/townHallRoutes"));
 
 // ✅ 4. DB CONNECTION
 mongoose.connect(process.env.MONGO_URI)

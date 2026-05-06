@@ -1,9 +1,190 @@
+// const express = require("express");
+// const router = express.Router();
+// const Report = require("../models/Report");
+// const AuditLog = require("../models/AuditLog");
+// const { protect, authorize } = require("../middleware/authMiddleware");
+
+
+// // ---------------- START REPORT ----------------
+// router.patch(
+//   "/report/:id/start",
+//   protect,
+//   authorize("security"),
+//   async (req, res) => {
+//     const report = await Report.findById(req.params.id);
+
+//     if (!report) {
+//       return res.status(404).json({ message: "Report not found" });
+//     }
+
+//     if (report.assignedTo?.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ message: "Not assigned to you" });
+//     }
+
+//     report.status = "in_progress";
+
+//     report.timeline.push({
+//       status: "in_progress",
+//       updatedBy: req.user._id,
+//       note: "Security started handling this case"
+//     });
+
+//     await report.save();
+//     await sendNotification({
+//       req,
+//       userId: report.reporter,
+//       title: "Report Update",
+//       message: "Your report is being handled",
+//       type: "report_started",
+//       metadata: { reportId: report._id }
+//     });
+//     const io = req.app.get("io");
+
+//     io.to(report.reporter.toString()).emit("report-started", {
+//       message: "Your report is now being handled",
+//       report
+//     });
+
+//     await AuditLog.create({
+//       actor: req.user._id,
+//       action: "START_REPORT",
+//       metadata: { reportId: report._id },
+//       ip: req.ip
+//     });
+
+//     res.json({ message: "Report started", report });
+//   }
+// );
+
+
+// // ---------------- RESOLVE REPORT ----------------
+// router.patch(
+//   "/report/:id/resolve",
+//   protect,
+//   authorize("security"),
+//   async (req, res) => {
+//     const report = await Report.findById(req.params.id);
+
+//     if (!report) {
+//       return res.status(404).json({ message: "Report not found" });
+//     }
+
+//     if (report.assignedTo?.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ message: "Not assigned to you" });
+//     }
+
+//     report.status = "resolved";
+
+//     report.timeline.push({
+//       status: "resolved",
+//       updatedBy: req.user._id,
+//       note: "Issue resolved"
+//     });
+
+//     await report.save();
+//     await sendNotification({
+//       req,
+//       userId: report.reporter,
+//       title: "Report Resolved",
+//       message: "Your report has been resolved",
+//       type: "report_resolved",
+//       metadata: { reportId: report._id }
+//     });
+
+//     const io = req.app.get("io");
+
+//     io.to(report.reporter.toString()).emit("report-resolved", {
+//       message: "Your report has been resolved",
+//       report
+//     });
+
+//     await AuditLog.create({
+//       actor: req.user._id,
+//       action: "RESOLVE_REPORT",
+//       metadata: { reportId: report._id },
+//       ip: req.ip
+//     });
+
+//     res.json({ message: "Report resolved", report });
+//   }
+// );
+
+
+// // ---------------- GET REPORT TIMELINE ----------------
+// router.get(
+//   "/report/:id/timeline",
+//   protect,
+//   authorize("security"),
+//   async (req, res) => {
+//     const report = await Report.findById(req.params.id)
+//       .populate("timeline.updatedBy", "name role");
+
+//     if (!report) {
+//       return res.status(404).json({ message: "Report not found" });
+//     }
+
+//     res.json(report.timeline);
+//   }
+// );
+
+// router.get(
+//   "/report/:id/details",
+//   protect,
+//   authorize("security"),
+//   async (req, res) => {
+//     const Report = require("../models/Report");
+
+//     const report = await Report.findById(req.params.id)
+//       .populate("reporter", "name email");
+
+//     if (!report) {
+//       return res.status(404).json({ message: "Report not found" });
+//     }
+
+//     // ensure it's assigned to this security
+//     if (report.assignedTo?.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ message: "Not allowed" });
+//     }
+
+//     res.json(report);
+//   }
+// );
+// // 1. Get all reports assigned to the logged-in security officer
+// router.get("/reports", protect, authorize("security"), async (req, res) => {
+//   const reports = await Report.find({ assignedTo: req.user._id })
+//     .sort({ createdAt: -1 });
+//   res.json(reports);
+// });
+
+// // 2. Dashboard stats
+// router.get("/stats", protect, authorize("security"), async (req, res) => {
+//   const base = { assignedTo: req.user._id };
+//   const [active, resolved, pending] = await Promise.all([
+//     Report.countDocuments({ ...base, status: "in_progress" }),
+//     Report.countDocuments({ ...base, status: "resolved" }),
+//     Report.countDocuments({ ...base, status: "assigned" }),
+//   ]);
+//   res.json({ active, resolved, pending });
+// });
+
+// module.exports = router;
+
 const express = require("express");
 const router = express.Router();
 const Report = require("../models/Report");
 const AuditLog = require("../models/AuditLog");
+const Notification = require("../models/Notification");
 const { protect, authorize } = require("../middleware/authMiddleware");
+const { sendNotification } = require("../service/notificationService");
 
+// ---------------- GET ALL REPORTS ----------------
+// Security can see ALL reports (not just assigned ones)
+router.get("/reports", protect, authorize("security"), async (req, res) => {
+  const reports = await Report.find({ isActive: true })
+    .populate("reporter", "name")
+    .sort({ createdAt: -1 });
+  res.json(reports);
+});
 
 // ---------------- START REPORT ----------------
 router.patch(
@@ -17,6 +198,12 @@ router.patch(
       return res.status(404).json({ message: "Report not found" });
     }
 
+    // Auto-assign to this security officer if not already assigned
+    if (!report.assignedTo) {
+      report.assignedTo = req.user._id;
+    }
+
+    // Only allow if assigned to this officer or unassigned
     if (report.assignedTo?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not assigned to you" });
     }
@@ -56,7 +243,6 @@ router.patch(
   }
 );
 
-
 // ---------------- RESOLVE REPORT ----------------
 router.patch(
   "/report/:id/resolve",
@@ -67,6 +253,11 @@ router.patch(
 
     if (!report) {
       return res.status(404).json({ message: "Report not found" });
+    }
+
+    // Auto-assign if not assigned
+    if (!report.assignedTo) {
+      report.assignedTo = req.user._id;
     }
 
     if (report.assignedTo?.toString() !== req.user._id.toString()) {
@@ -109,7 +300,6 @@ router.patch(
   }
 );
 
-
 // ---------------- GET REPORT TIMELINE ----------------
 router.get(
   "/report/:id/timeline",
@@ -132,8 +322,6 @@ router.get(
   protect,
   authorize("security"),
   async (req, res) => {
-    const Report = require("../models/Report");
-
     const report = await Report.findById(req.params.id)
       .populate("reporter", "name email");
 
@@ -141,28 +329,19 @@ router.get(
       return res.status(404).json({ message: "Report not found" });
     }
 
-    // ensure it's assigned to this security
-    if (report.assignedTo?.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not allowed" });
-    }
-
     res.json(report);
   }
 );
-// 1. Get all reports assigned to the logged-in security officer
-router.get("/reports", protect, authorize("security"), async (req, res) => {
-  const reports = await Report.find({ assignedTo: req.user._id })
-    .sort({ createdAt: -1 });
-  res.json(reports);
-});
 
-// 2. Dashboard stats
+// ---------------- DASHBOARD STATS (ALL REPORTS) ----------------
 router.get("/stats", protect, authorize("security"), async (req, res) => {
-  const base = { assignedTo: req.user._id };
   const [active, resolved, pending] = await Promise.all([
-    Report.countDocuments({ ...base, status: "in_progress" }),
-    Report.countDocuments({ ...base, status: "resolved" }),
-    Report.countDocuments({ ...base, status: "assigned" }),
+    Report.countDocuments({ status: "in_progress", isActive: true }),
+    Report.countDocuments({ status: "resolved", isActive: true }),
+    Report.countDocuments({ 
+      status: { $in: ["pending", "under_review", "assigned"] }, 
+      isActive: true 
+    }),
   ]);
   res.json({ active, resolved, pending });
 });
