@@ -149,5 +149,22 @@ router.get(
     res.json(report);
   }
 );
+// 1. Get all reports assigned to the logged-in security officer
+router.get("/reports", protect, authorize("security"), async (req, res) => {
+  const reports = await Report.find({ assignedTo: req.user._id })
+    .sort({ createdAt: -1 });
+  res.json(reports);
+});
+
+// 2. Dashboard stats
+router.get("/stats", protect, authorize("security"), async (req, res) => {
+  const base = { assignedTo: req.user._id };
+  const [active, resolved, pending] = await Promise.all([
+    Report.countDocuments({ ...base, status: "in_progress" }),
+    Report.countDocuments({ ...base, status: "resolved" }),
+    Report.countDocuments({ ...base, status: "assigned" }),
+  ]);
+  res.json({ active, resolved, pending });
+});
 
 module.exports = router;
