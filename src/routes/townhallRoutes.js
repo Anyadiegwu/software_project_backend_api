@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const TownHall = require("../models/TownHall");
+const TownHall = require("../models/Townhall");
 const Notification = require("../models/Notification");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
