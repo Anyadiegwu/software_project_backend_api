@@ -56,6 +56,10 @@ io.on("connection", (socket) => {
 });
 
 // ✅ 9. START SERVER
-server.listen(5000, () => {
-  console.log("Server running with WebSocket");
+// server.listen(5000, () => {
+//   console.log("Server running with WebSocket");
+// });\
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
