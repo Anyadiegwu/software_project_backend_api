@@ -661,15 +661,15 @@ exports.securityRegister = async (req, res) => {
 
     await user.save();
 
-    try {
-      await transporter.sendMail({
-        to: user.email,
-        subject: "Verify your account",
-        text: `Your OTP is ${otp}`
-      });
-    } catch (mailErr) {
-      console.error("Email send failed:", mailErr.message);
-    }
+    // try {
+    //   await transporter.sendMail({
+    //     to: user.email,
+    //     subject: "Verify your account",
+    //     text: `Your OTP is ${otp}`
+    //   });
+    // } catch (mailErr) {
+    //   console.error("Email send failed:", mailErr.message);
+    // }
 
     res.status(201).json({
       message: "User created. Check email for OTP verification (or use resend-otp if not received)",
