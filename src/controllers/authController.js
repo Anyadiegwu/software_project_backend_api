@@ -538,14 +538,19 @@ exports.reporterRegister = async (req, res) => {
 
     await user.save();
 
+    // DEBUG: Log OTP so it's visible in Render logs if email fails
+    console.log(`[OTP DEBUG] Reporter ${user.email} OTP: ${otp}`);
+
     try {
       await transporter.sendMail({
+        from: process.env.EMAIL_USER,
         to: user.email,
-        subject: "Verify your account",
-        text: `Your OTP is ${otp}`
+        subject: "Verify your Aegis account",
+        text: `Your verification code is: ${otp}\n\nThis code expires in 10 minutes.`
       });
+      console.log(`[EMAIL] OTP sent to ${user.email}`);
     } catch (mailErr) {
-      console.error("Email send failed:", mailErr.message);
+      console.error("[EMAIL ERROR] Email send failed:", mailErr.message);
     }
 
     res.status(201).json({
@@ -661,14 +666,19 @@ exports.securityRegister = async (req, res) => {
 
     await user.save();
 
+    // DEBUG: Log OTP so it's visible in Render logs if email fails
+    console.log(`[OTP DEBUG] Security ${user.email} OTP: ${otp}`);
+
     try {
       await transporter.sendMail({
+        from: process.env.EMAIL_USER,
         to: user.email,
-        subject: "Verify your account",
-        text: `Your OTP is ${otp}`
+        subject: "Verify your Aegis account",
+        text: `Your verification code is: ${otp}\n\nThis code expires in 10 minutes.`
       });
+      console.log(`[EMAIL] OTP sent to ${user.email}`);
     } catch (mailErr) {
-      console.error("Email send failed:", mailErr.message);
+      console.error("[EMAIL ERROR] Email send failed:", mailErr.message);
     }
 
     res.status(201).json({
