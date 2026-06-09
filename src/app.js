@@ -14,6 +14,12 @@ app.use(express.json());
 app.use(cors());
 
 // ✅ 3. ROUTES
+
+// Add this to src/app.js to give UptimeRobot a valid path to ping
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "healthy", message: "Aegis Backend is active" });
+});
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/protected", require("./routes/protectedRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
