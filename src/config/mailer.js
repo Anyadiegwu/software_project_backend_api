@@ -1,36 +1,57 @@
+// src/config/mailer.js
 const nodemailer = require("nodemailer");
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  // 1. Switch to Port 587 (Render leaves this open for outward web apps)
-  port: 587,
-  // 2. Set secure to false because port 587 starts unencrypted, then upgrades
-  secure: false, 
-  
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
 
-  // Retain your optimization rules
-  pool: true,
-  maxConnections: 1,
-  rateDelta: 1000, 
-  rateLimit: 5,    
+// Create a placeholder transporter variable
+let transporter;
 
-  // Retain connection fallback buffers
-  connectionTimeout: 10000, 
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  dnsTimeout: 5000
-});
+// Asynchronously configure the secure email sandbox channel
+const initMailer = async () => {
+  try {
+    // Generate an instant, free test account on Ethereal
+    const testAccount = await nodemailer.createTestAccount();
 
-// Verify connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("Email transporter error:", error);
-  } else {
-    console.log("Email server is ready");
+    transporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: testAccount.user, // generated ethereal user
+        pass: testAccount.pass  // generated ethereal password
+      }
+    });
+
+    // Intercept the default sendMail method to print a live check URL to Render's logs
+    const originalSendMail = transporter.sendMail.bind(transporter);
+    transporter.sendMail = async (mailOptions) => {
+      const info = await originalSendMail(mailOptions);
+      
+      // ⚠️ CRITICAL FOR YOUR SCHOOL DEMO:
+      // This prints a live website URL into your Render log dashboard.
+      // Opening that URL lets you show the panel the actual sent email!
+      console.log("-----------------------------------------");
+      console.log("📬 TEST EMAIL SENT SUCCESSFULLY!");
+      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+      console.log("-----------------------------------------");
+      
+      return info;
+    };
+
+    console.log("⚡ Ethereal Mailer sandbox initialized successfully!");
+  } catch (error) {
+    console.error("❌ Failed to initialize Ethereal mailer:", error.message);
   }
-});
+};
 
-module.exports = transporter;
+// Execute the generation immediately
+initMailer();
+
+// Export an object wrapper that waits for the transporter to initialize
+module.exports = {
+  sendMail: async (options) => {
+    if (!transporter) {
+      // Small timeout buffer to ensure asynchronous registration completes if hit instantly
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    return await transporter.sendMail(options);
+  }
+};
