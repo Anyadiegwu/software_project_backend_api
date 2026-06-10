@@ -1,57 +1,48 @@
 // src/config/mailer.js
-const nodemailer = require("nodemailer");
+const transporter = {
+  sendMail: async ({ from, to, subject, html, text }) => {
+    try {
+      const emailHtml = html || text;
 
-// Create a placeholder transporter variable
-let transporter;
-
-// Asynchronously configure the secure email sandbox channel
-const initMailer = async () => {
-  try {
-    // Generate an instant, free test account on Ethereal
-    const testAccount = await nodemailer.createTestAccount();
-
-    transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: testAccount.user, // generated ethereal user
-        pass: testAccount.pass  // generated ethereal password
+      if (!emailHtml) {
+        throw new Error("Email body content (html or text) is required.");
       }
-    });
 
-    // Intercept the default sendMail method to print a live check URL to Render's logs
-    const originalSendMail = transporter.sendMail.bind(transporter);
-    transporter.sendMail = async (mailOptions) => {
-      const info = await originalSendMail(mailOptions);
+      // Convert the recipient string/array to Brevo's object layout format
+      const recipientArray = Array.isArray(to) ? to : [to];
+      const brevoTo = recipientArray.map(email => ({ email: email }));
+
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": process.env.BREVO_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          // You can type your personal email here as the sender, Brevo allows it for testing!
+          sender: { 
+            name: "Aegis Safety System", 
+            email: "aegisteamnews@gmail.com" 
+          },
+          to: brevoTo,
+          subject: subject,
+          htmlContent: emailHtml,
+        }),
+      });
+
+      const data = await response.json();
       
-      // ⚠️ CRITICAL FOR YOUR SCHOOL DEMO:
-      // This prints a live website URL into your Render log dashboard.
-      // Opening that URL lets you show the panel the actual sent email!
-      console.log("-----------------------------------------");
-      console.log("📬 TEST EMAIL SENT SUCCESSFULLY!");
-      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-      console.log("-----------------------------------------");
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send email via Brevo API");
+      }
       
-      return info;
-    };
-
-    console.log("⚡ Ethereal Mailer sandbox initialized successfully!");
-  } catch (error) {
-    console.error("❌ Failed to initialize Ethereal mailer:", error.message);
-  }
-};
-
-// Execute the generation immediately
-initMailer();
-
-// Export an object wrapper that waits for the transporter to initialize
-module.exports = {
-  sendMail: async (options) => {
-    if (!transporter) {
-      // Small timeout buffer to ensure asynchronous registration completes if hit instantly
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      return data;
+    } catch (error) {
+      console.error("Email API Error:", error.message);
+      throw error;
     }
-    return await transporter.sendMail(options);
   }
 };
+
+module.exports = transporter;
